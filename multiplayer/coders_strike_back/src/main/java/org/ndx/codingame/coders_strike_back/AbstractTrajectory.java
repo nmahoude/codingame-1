@@ -1,9 +1,10 @@
 package org.ndx.codingame.coders_strike_back;
 
+import java.util.Collection;
 import java.util.Deque;
 
 import org.ndx.codingame.lib2d.Line;
-import org.ndx.codingame.lib2d.Point;
+import org.ndx.codingame.lib2d.base.AbstractPoint;
 
 public abstract class AbstractTrajectory implements Trajectory {
 
@@ -26,25 +27,40 @@ public abstract class AbstractTrajectory implements Trajectory {
 		this.targetPosition = path.pop();
 	}
 	
-	protected int computeThrust(Line direction, Point target) {
-		double angularThrust = Math.abs(angle)<60 ? 1 : 0;
-		double distanceThrust = distance>1000 ? 1 : distance/1000f;
+	protected int computeThrust(Line direction, AbstractPoint target) {
+		double angularThrust = computeAngularThrust();
+		double distanceThrust = computeDistanceThrust();
+//		System.err.println(String.format("Angular thrust is %f, distance thrust is %f", angularThrust, distanceThrust));
 		return (int) (angularThrust*distanceThrust*Player.MAXIMUM_THRUST);
 	}
 
-	@Override
-	public String build(Configuration config) {
-		Line direction = new Line(previousPosition, currentPosition);
-		int thrust = computeThrust(direction, targetPosition);
-		double distanceTo = direction.distance2To(targetPosition);
-		System.err.println(String.format("angle to target is %s distance to target is %s orthogonal distance is %s", angle, distance, distanceTo));
-		return build(config, direction, thrust, distanceTo);
+	protected float computeDistanceThrust() {
+		return distance>1000 ? 1 : distance/1000f;
 	}
 
-	protected abstract String build(Configuration config, Line direction, int thrust,
-			double distanceTo);
+	protected int computeAngularThrust() {
+		return Math.abs(angle)<60 ? 1 : 0;
+	}
 
-	protected String buildAiming(Configuration config, Line direction, int thrust) {
+	@Override
+	public String build(boolean canBoost, boolean canShield, Collection<Line> enemyDirections) {
+		Line mypodDirection = new Line(previousPosition, currentPosition);
+		String thrust = computeThrust(mypodDirection, targetPosition)+"";
+		double distanceTo = mypodDirection.distance2To(targetPosition);
+//		System.err.println(String.format("angle to target is %s distance to target is %s orthogonal distance is %s", angle, distance, distanceTo));
+		if(canShield) {
+			for(Line enemy : enemyDirections) {
+				if(enemy.second.distance2To(currentPosition)<500*2) {
+					thrust = "SHIELD";
+				}
+			}
+		}
+		return build(mypodDirection, thrust, distanceTo);
+	}
+
+	protected abstract String build(Line mypodDirection, String thrust, double distanceTo);
+
+	protected String buildAiming(Line direction, String thrust) {
 		System.err.println("Aiming directly at target !");
 		return targetPosition.goTo(thrust);
 	}

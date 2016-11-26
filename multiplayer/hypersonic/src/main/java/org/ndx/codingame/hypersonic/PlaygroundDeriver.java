@@ -1,18 +1,24 @@
 package org.ndx.codingame.hypersonic;
 
-public class PlaygroundDeriver extends PlaygroundAdapter<Playground> {
+import org.ndx.codingame.hypersonic.content.Bomb;
+import org.ndx.codingame.hypersonic.content.Box;
+import org.ndx.codingame.hypersonic.content.Content;
+import org.ndx.codingame.hypersonic.content.ContentVisitor;
+import org.ndx.codingame.hypersonic.content.Fire;
+import org.ndx.codingame.hypersonic.content.FireThenItem;
+import org.ndx.codingame.hypersonic.content.Item;
+import org.ndx.codingame.hypersonic.content.Nothing;
+import org.ndx.codingame.hypersonic.content.Wall;
+import org.ndx.codingame.lib2d.discrete.Direction;
+
+public class PlaygroundDeriver extends PlaygroundAdapter<Playfield> {
 		public class PlaygroundCellDeriver implements ContentVisitor<Void> {
 			public int x;
 			public int y;
 			@Override public Void visitNothing(Nothing nothing) {
 				Content alreadyWritten = derived.get(x, y);
-				if(!Fire.instance.equals(alreadyWritten) && !BombDanger.instance.equals(alreadyWritten))
+				if(!Fire.instance.equals(alreadyWritten))
 					derived.set(x, y, nothing);
-				return null;
-			}
-			@Override public Void visitBombDanger(BombDanger danger) {
-				if(!Fire.instance.equals(derived.get(x, y)))
-					derived.set(x, y, danger);
 				return null;
 			}
 			@Override
@@ -37,12 +43,13 @@ public class PlaygroundDeriver extends PlaygroundAdapter<Playground> {
 			@Override
 			public Void visitItem(Item item) {
 				if(!Fire.instance.equals(derived.get(x, y)))
-				derived.set(x, y, item);
+					derived.set(x, y, item);
 				return null;
 			}
 			@Override
 			public Void visitFire(Fire fire) {
-				derived.set(x, y, Nothing.instance);
+				if(!Fire.instance.equals(derived.get(x, y)))
+					derived.set(x, y, Nothing.instance);
 				return null;
 			}
 			@Override
@@ -57,25 +64,6 @@ public class PlaygroundDeriver extends PlaygroundAdapter<Playground> {
 						fireBomb(bomb);
 					} else {
 						derived.set(x, y, new Bomb(bomb.owner, bomb.x, bomb.y, bomb.delay-1, bomb.range));
-						// Do not forget to extend bomb with danger
-						int dangerZone = bomb.range;
-//						int dangerZone = Math.min(bomb.delay, bomb.range);
-						for (int directionIndex = 0; directionIndex < Player.DIRECTIONS.length; directionIndex++) {
-							int[] direction = Player.DIRECTIONS[directionIndex];
-							for (int extension = 1; extension <= dangerZone; extension++) {
-								int p_x = bomb.x+direction[0]*extension;
-								int p_y = bomb.y+direction[1]*extension;
-								if(source.contains(p_x, p_y)) {
-									if(Nothing.instance.equals(source.get(p_x, p_y))) {
-										derived.set(p_x, p_y, BombDanger.instance);
-									} else {
-										break;
-									}
-								} else {
-									break;
-								}
-							}
-						}
 					}
 				} else {
 					// Fire that bomb !
@@ -88,38 +76,40 @@ public class PlaygroundDeriver extends PlaygroundAdapter<Playground> {
 			}
 			private void fireBomb(Bomb bomb) {
 				derived.set(bomb.x, bomb.y, Fire.instance);
-				for (int i = 0; i < Player.DIRECTIONS.length; i++) {
-					int[] direction = Player.DIRECTIONS[i];
-					for (int extension = 1; extension <= bomb.range; extension++) {
-						int p_x = bomb.x+direction[0]*extension;
-						int p_y = bomb.y+direction[1]*extension;
-						if(source.contains(p_x, p_y)) {
-							CanFire canFire = source.get(p_x, p_y).canFire();
-							if(CanFire.YES.equals(canFire)||CanFire.END_PROPAGATION.equals(canFire)) {
-								this.x = p_x;
-								this.y = p_y;
-								if(!Fire.instance.equals(derived.get(p_x, p_y))) {
-									source.get(p_x, p_y).accept(this);
-									derived.set(p_x, p_y, Fire.instance);
-								}
+				for(Direction d : Direction.DIRECTIONS) {
+					fireBombInDirection(bomb, d);
+				}
+			}
+			private void fireBombInDirection(Bomb bomb, Direction d) {
+				for (int extension = 1; extension < bomb.range; extension++) {
+					int p_x = bomb.x+d.x*extension;
+					int p_y = bomb.y+d.y*extension;
+					if(source.contains(p_x, p_y)) {
+						CanFire canFire = source.get(p_x, p_y).canFire();
+						if(CanFire.YES.equals(canFire)||CanFire.END_PROPAGATION.equals(canFire)) {
+							this.x = p_x;
+							this.y = p_y;
+							if(!Fire.instance.equals(derived.get(p_x, p_y))) {
+								derived.set(p_x, p_y, Fire.instance);
+								source.get(p_x, p_y).accept(this);
 							}
-							if(CanFire.NOT.equals(canFire)||CanFire.END_PROPAGATION.equals(canFire)) {
-								break;
-							}
-						} else {
+						}
+						if(CanFire.NOT.equals(canFire)||CanFire.END_PROPAGATION.equals(canFire)) {
 							break;
 						}
+					} else {
+						break;
 					}
 				}
 			}
 		}
 		private PlaygroundCellDeriver cellDeriver = new PlaygroundCellDeriver();
-		public Playground source;
-		public Playground derived;
+		public Playfield source;
+		public Playfield derived;
 		@Override
-		public void startVisit(Playground playground) {
+		public void startVisit(Playfield playground) {
 			source = playground;
-			returned = derived = new Playground(playground.width, playground.height);
+			returned = derived = new Playfield(playground.width, playground.height);
 		}
 		@Override
 		public void visit(int x, int y, Content content) {
@@ -128,7 +118,7 @@ public class PlaygroundDeriver extends PlaygroundAdapter<Playground> {
 			content.accept(cellDeriver);
 		}
 		@Override
-		public Playground endVisit(Playground playground) {
+		public Playfield endVisit(Playfield playground) {
 			return super.endVisit(playground);
 		}
 	}

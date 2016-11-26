@@ -135,9 +135,10 @@
 	<modules>
 		<module>libs</module>
 		<module>tooling</module>
+		<module>training/labyrinth</module>
 		<module>multiplayer/hypersonic</module>
 		<module>multiplayer/the_accountant</module>
 		<module>multiplayer/coders_strike_back</module>
-		
+		<module>multiplayer/fantastic-bits</module>
 	</modules>
 </project>

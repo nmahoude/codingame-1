@@ -2,7 +2,7 @@ package org.ndx.codingame.coders_strike_back;
 
 import java.util.Deque;
 
-import org.ndx.codingame.lib2d.Point;
+import org.ndx.codingame.lib2d.continuous.ContinuousPoint;
 
 public class TrajectoryBuilder {
 
@@ -42,7 +42,6 @@ public class TrajectoryBuilder {
 				return new StartTrajectory(targetPosition.peek());
 			} else {
 				return new DrifterTrajectory(currentPosition, previousPosition, targetPosition, distance, angle);
-//				return new TriangularTrajectory(currentPosition, previousPosition, targetPosition, distance, angle);
 			}
 		}
 		
